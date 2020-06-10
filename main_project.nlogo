@@ -2,8 +2,11 @@ extensions [matrix array] ;allows arrays and matrix
 
 ; Global variables
 globals [
-  counts ;time since the beginning of the process UNITS???
   num_image ;id of the image to be displayed
+  max_id ;max_id to be displayed
+  selected_folder ;if I selected or not, something
+  track-me ;to save .txt
+  file-name ;name to save
 ]
 
 ; Turtles variables
@@ -17,7 +20,27 @@ turtles-own [
 to setup
   clear-all
 
-  set-current-directory user-directory
+  let root_dir "C:\\Users\\Carlos Ferreira\\Desktop\\Aulas Doutoramento\\Simulação\\Projeto\\"
+  set num_image 0
+
+  let str_num_image (word ".\\ct1\\" num_image ".jpg")
+  carefully [
+    set-current-directory user-directory ; try to take the mean of an empty list
+    set selected_folder True
+    set str_num_image (word num_image ".png")
+    file-open (word "stop.txt")
+    set max_id (read-from-string file-read-line)
+    file-close
+  ] [
+    set-current-directory root_dir ; I tried to fix this automatically but it was impossible
+    set selected_folder False ; or do something else instead...
+    set str_num_image (word root_dir "\\ct1\\" num_image ".jpg")
+    file-open (word root_dir "\\ct1\\stop.txt")
+    set max_id (read-from-string file-read-line)
+    file-close
+  ]
+
+  import-drawing str_num_image
 
   ; turles initialization
   create-turtles 1
@@ -28,10 +51,23 @@ to setup
     set color red
     set shape "dot"
     setxy my_xcoord my_ycoord
-    set space_max 2
+    set space_max 200
   ]
 
+  set track-me one-of turtles
   reset-ticks
+
+  ; save name file
+  let date (remove "-" (substring date-and-time 16 27))
+  let time (remove "." remove ":" remove " " (substring date-and-time 0 15))
+  set file-name (word root_dir "results\\file-" time "-" date ".csv")
+
+  file-open file-name
+  file-print "iteration,xcoord,ycoord,zcoord"
+  file-close
+  file-open file-name
+  file-print Description
+  file-close
 
 end
 
@@ -40,14 +76,28 @@ to go
 
   ask turtles [process]
 
-  ; sums time
-  set counts (counts + 1)
-
   ; change image
-  if (counts = 10) or (counts = 20) [
-    set num_image (num_image + 1)
+  if ((ticks mod 10) = 0) and (ticks > 1) and (ticks <= max_id * 10) [
+
+    ;set num_image (num_image + 1)
+    set num_image (ticks / 10)
     let str_num_image (word ".\\ct1\\" num_image ".jpg")
+    if (selected_folder = True)
+      [ set str_num_image (word num_image ".png")  ]
+
     import-drawing str_num_image]
+
+  ask track-me [
+    file-open file-name
+    file-print (word ticks "," xcor "," ycor "," num_image "")
+    file-close
+  ]
+
+  if (ticks = ((max_id + 1) * 10 - 1))[
+    stop
+  ]
+
+  tick
 
 end
 
@@ -71,10 +121,6 @@ to process
     ;column x
     let x_coord (xcor + (array:item max_coord 1) - ((space - 1) / 2))
     let y_coord (ycor - (array:item max_coord 0) + ((space - 1) / 2))
-
-    print space
-    print max_coord
-    print x_coord
 
     ; limits restrictions
     if (x_coord < 0) [set x_coord (- x_coord)]
@@ -117,10 +163,10 @@ to-report max-matrix [my_matrix_ space_]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-84
-12
-673
-602
+206
+11
+795
+601
 -1
 -1
 1.133
@@ -144,11 +190,11 @@ ticks
 30.0
 
 BUTTON
-8
+11
 47
-71
+192
 80
-NIL
+Go
 go
 T
 1
@@ -161,11 +207,11 @@ NIL
 1
 
 BUTTON
-8
+11
 12
-71
+192
 45
-NIL
+Setup
 setup
 NIL
 1
@@ -176,6 +222,81 @@ NIL
 NIL
 NIL
 1
+
+INPUTBOX
+11
+82
+192
+142
+Description
+NIL
+1
+0
+String
+
+TEXTBOX
+896
+126
+1046
+144
+NIL
+11
+0.0
+1
+
+PLOT
+810
+12
+1147
+303
+X Coordinate
+Time
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -13210332 true "" "ask turtles[ plotxy ticks xcor ]"
+
+PLOT
+810
+308
+1147
+600
+Y Coordinate
+Time
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -13210332 true "" "ask turtles[ plotxy ticks (- ycor) ]"
+
+PLOT
+1155
+12
+1479
+303
+Z Coordinate
+NIL
+Time
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -13210332 true "" "ask turtles[ plotxy ticks num_image ]"
 
 @#$#@#$#@
 ## WHAT IS IT?
