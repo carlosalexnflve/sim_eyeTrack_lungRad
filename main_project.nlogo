@@ -1,12 +1,13 @@
-extensions [matrix array] ;allows arrays and matrix
+extensions [py matrix array] ;allows arrays and matrix
 
 ; Global variables
 globals [
   num_image ;id of the image to be displayed
   max_id ;max_id to be displayed
   selected_folder ;if I selected or not, something
-  track-me ;to save .txt
+  track-me ;to save .csv
   file-name ;name to save
+  dir
 ]
 
 ; Turtles variables
@@ -20,26 +21,29 @@ turtles-own [
 to setup
   clear-all
 
-  let root_dir "C:\\Users\\Carlos Ferreira\\Desktop\\Aulas Doutoramento\\Simulação\\Projeto\\"
+  py:setup py:python3
+  (py:run
+    "import os"
+    "f = open('main_project.nlogo')"
+    "dir_py = os.path.abspath(os.path.dirname('__file__'))"
+  )
+
+  let root_dir py:runresult "dir_py"
   set num_image 0
 
-  let str_num_image (word ".\\ct1\\" num_image ".jpg")
-  carefully [
-    set-current-directory user-directory ; try to take the mean of an empty list
-    set selected_folder True
-    set str_num_image (word num_image ".png")
-    file-open (word "stop.txt")
-    set max_id (read-from-string file-read-line)
-    file-close
-  ] [
-    set-current-directory root_dir ; I tried to fix this automatically but it was impossible
-    set selected_folder False ; or do something else instead...
-    set str_num_image (word root_dir "\\ct1\\" num_image ".jpg")
-    file-open (word root_dir "\\ct1\\stop.txt")
-    set max_id (read-from-string file-read-line)
-    file-close
-  ]
+  set dir (word root_dir "\\ct1")
+  let str_num_image (word dir "\\" num_image ".png")
 
+  let check user-directory
+  if check != False [
+      set dir check
+      set str_num_image (word dir "\\" num_image ".png")
+    ]
+
+  py:set "dir_nlogo" dir
+  set max_id py:runresult "len(next(os.walk(dir_nlogo))[2]) - 1"
+
+  import-drawing str_num_image ;stupid error, I need to repeat the code 2times and then the image is printed
   import-drawing str_num_image
 
   ; turles initialization
@@ -60,7 +64,7 @@ to setup
   ; save name file
   let date (remove "-" (substring date-and-time 16 27))
   let time (remove "." remove ":" remove " " (substring date-and-time 0 15))
-  set file-name (word root_dir "results\\file-" time "-" date ".csv")
+  set file-name (word root_dir "\\results\\file-" time "-" date ".csv")
 
   file-open file-name
   file-print "iteration,xcoord,ycoord,zcoord"
@@ -81,10 +85,7 @@ to go
 
     ;set num_image (num_image + 1)
     set num_image (ticks / 10)
-    let str_num_image (word ".\\ct1\\" num_image ".jpg")
-    if (selected_folder = True)
-      [ set str_num_image (word num_image ".png")  ]
-
+    let str_num_image (word dir "\\" num_image ".png")
     import-drawing str_num_image]
 
   ask track-me [
