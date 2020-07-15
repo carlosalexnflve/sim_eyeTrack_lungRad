@@ -1,0 +1,2 @@
+mean_valid_time,std_valid_time,mean_slice_time,std_slice_time,mean_valid_time_lung_right,std_valid_time_lung_right,mean_valid_time_lung_left,std_valid_time_lung_left,mean_valid_time_lung,std_valid_time_lung,mean_valid_time_out,std_valid_time_out
+164.86557003257323,74.49794390567726,0.5223026354576796,0.23554906612322096,73.26240065146578,34.53587729506526,56.58622149837134,31.775506778324438,129.84862214983713,58.90209169903666,35.01694788273617,22.564015659625785
