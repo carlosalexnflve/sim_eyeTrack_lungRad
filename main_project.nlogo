@@ -8,13 +8,32 @@ globals [
   track-me ;to save .csv
   file-name ;name to save
   dir
+
+  next-pass-image ;n of the next tick to pass the image
+  dif-pass-image
+  mean-out-lung ;mean value inside
+  std-out-lung ;
+
+  formula_mean_right
+  formula_mean_left
+  formula_std_right
+  formula_std_left
+  min_idx_right
+  min_idx_left
+  max_idx_right
+  max_idx_left
+
+  lung ;which lung it is
+  descend-ascend ;reading from descend way or ascend way
+  pass ;number of times that pass all lung
+
+  inside-lung
 ]
 
 ; Turtles variables
 turtles-own [
-  my_xcoord ;x coord of the turtle
-  my_ycoord ;y coord of the turle
   space_max ;space max that a turtle can travel
+  color-red
 ]
 
 ; procedure to setup the simulation scenario
@@ -24,15 +43,17 @@ to setup
   py:setup py:python3
   (py:run
     "import os"
-    "f = open('main_project.nlogo')"
+    "import numpy as np"
+    "import imageio"
+    "import random"
     "dir_py = os.path.abspath(os.path.dirname('__file__'))"
   )
 
   let root_dir py:runresult "dir_py"
-  set num_image 0
+  set num_image 1
 
-  set dir (word root_dir "\\ct1")
-  let str_num_image (word dir "\\" num_image ".png")
+  set dir (word root_dir "\\ct1\\")
+  let str_num_image (word dir num_image ".png")
 
   let check user-directory
   if check != False [
@@ -41,7 +62,11 @@ to setup
     ]
 
   py:set "dir_nlogo" dir
-  set max_id py:runresult "len(next(os.walk(dir_nlogo))[2]) - 1"
+  (py:run
+    "max_id = len(next(os.walk(dir_nlogo))[2]) / 2"
+  )
+
+  set max_id py:runresult "max_id"
 
   import-drawing str_num_image ;stupid error, I need to repeat the code 2times and then the image is printed
   import-drawing str_num_image
@@ -49,13 +74,13 @@ to setup
   ; turles initialization
   create-turtles 1
   ask turtles [
-    set my_xcoord 5
-    set my_ycoord -5
     set size 20
     set color red
     set shape "dot"
-    setxy my_xcoord my_ycoord
-    set space_max 200
+    setxy 220 -220 ;xcoord, ycoord
+    set space_max 30
+    set color-red TRUE
+    py:set "space_max" space_max
   ]
 
   set track-me one-of turtles
@@ -73,20 +98,192 @@ to setup
   file-print Description
   file-close
 
+  ; metrics related to images that it is needed to computer before everything
+  (py:run
+    "ct_color_1 = imageio.imread(dir_nlogo + '1_sectors.png')"
+    "tam1 = np.size(ct_color_1,0)"
+    "tam2 = np.size(ct_color_1,1)"
+    "ct_colors = np.zeros([tam1,tam2,3,int(max_id)])"
+    "valid_lung_slides = np.zeros(int(max_id))"
+    "valid_right_slides = np.zeros(int(max_id))"
+    "valid_left_slides = np.zeros(int(max_id))"
+    "for i in range(int(max_id)): inter = imageio.imread(dir_nlogo + str(i+1)  + '_sectors.png'); ct_colors[:,:,:,i] = inter; valid_lung_slides[i] = np.max(inter); valid_right_slides[i] = np.max(inter[:,:,0]); valid_left_slides[i] = np.max(inter[:,:,1])"
+    "out_slides = np.size(np.where(valid_lung_slides == 0),1)"
+
+    "idx_right_slides = np.where(valid_right_slides > 0)"
+    "min_idx_right = np.min(idx_right_slides)"
+    "max_idx_right = np.max(idx_right_slides)"
+    "dif_idx_right = max_idx_right - min_idx_right"
+
+    "idx_left_slides = np.where(valid_left_slides > 0)"
+    "min_idx_left = np.min(idx_left_slides)"
+    "max_idx_left = np.max(idx_left_slides)"
+    "dif_idx_left = max_idx_left - min_idx_left"
+
+    "probabilities20 = np.array([[20,0.297716346494347,0.167216904181717,0.346545722585303,0.218929308306775,0,0,0,0.297716346494347,0,0,0,0.346545722585303]])"
+    "probabilities30 = np.array([[30,0.186540864111143,0.156113686960323,0.14051885693063,0.150496723096041,0,0,0,0.186540864111143,0,0,0,0.14051885693063]])"
+    "probabilities40 = np.array([[40,0.0845937669092631,0.0993204293877489,0.0976130155740453,0.123486244528316,0,0,0,0.0845937669092631,0,0,0,0.0976130155740453]])"
+    "probabilities50 = np.array([[50,0.129078407986696,0.105595080848514,0.124774272033228,0.138408370735981,0,0,0,0.129078407986696,0,0,0,0.124774272033228]])"
+    "probabilities60 = np.array([[60,0.145288636692003,0.213933603401254,0.217282472140479,0.250166050215797,0,0,0,0.145288636692003,0,0,0,0.217282472140479]])"
+    "probabilities70 = np.array([[70,0.0869125491873637,0.153468443390578,0.0417215393273544,0.0714383121818442,0,0,0,0.0869125491873637,0,0,0,0.0417215393273544]])"
+    "probabilities80 = np.array([[80,0.0698694286191841,0.104351851829864,0.0315441214089594,0.0470749909352457,0,0,0,0.0698694286191841,0,0,0,0.0315441214089594]])"
+    "probabilities90 = np.array([[90,0.229806128962859,0.143546154924322,0.236701104678654,0.180339593219349,0,0,0,0.229806128962859,0,0,0,0.236701104678654]])"
+    "probabilities100 = np.array([[100,0.313963863877633,0.269013252345817,0.216052997136018,0.215365108251175,0,0,0,0.313963863877633,0,0,0,0.216052997136018]])"
+    "probabilities110 = np.array([[110,0.0386490041934267,0.0494271304312456,0.159696991226759,0.159888157169161,0,0,0,0.0386490041934267,0,0,0,0.159696991226759]])"
+    "probabilities120 = np.array([[120,0.131763178963035,0.105511722842983,0.116487371776183,0.136227759877601,0,0,0,0.131763178963035,0,0,0,0.116487371776183]])"
+    "probabilities130 = np.array([[130,0.157773710142167,0.194517238467622,0.219855306450941,0.220621139513044,0,0,0,0.157773710142167,0,0,0,0.219855306450941]])"
+    "probabilities140 = np.array([[140,0.0548266728739257,0.115116426803917,0.0398654492090364,0.0615670988857528,0,0,0,0.0548266728739257,0,0,0,0.0398654492090364]])"
+    "probabilities150 = np.array([[150,0.0732174409869539,0.122868074184094,0.0113407795224084,0.0259911430839164,0,0,0,0.0732174409869539,0,0,0,0.0113407795224084]])"
+    "probabilities160 = np.array([[160,0.191916888024092,0.107963312962537,0.267101070358621,0.19302123282522,0,0,0,0.191916888024092,0,0,0,0.267101070358621]])"
+    "probabilities170 = np.array([[170,0.276591149470761,0.272799466192551,0.209407525162127,0.216654555735992,0,0,0,0.276591149470761,0,0,0,0.209407525162127]])"
+    "probabilities180 = np.array([[180,0.0855765116222738,0.091543396875813,0.185099826254412,0.185041956516672,0,0,0,0.0855765116222738,0,0,0,0.185099826254412]])"
+    "probabilities190 = np.array([[190,0.170200311649725,0.109254282107826,0.108596950753017,0.12489940685082,0,0,0,0.170200311649725,0,0,0,0.108596950753017]])"
+    "probabilities200 = np.array([[200,0.111915353996948,0.129125133977414,0.133943786509811,0.149812776044002,0,0,0,0.111915353996948,0,0,0,0.133943786509811]])"
+    "probabilities210 = np.array([[210,0.0716875105968977,0.160764673202428,0.0648483360702039,0.081880644358471,0,0,0,0.0716875105968977,0,0,0,0.0648483360702039]])"
+    "probabilities220 = np.array([[220,0.092112274639302,0.128549734681432,0.0310025048918082,0.0486894276688227,0,0,0,0.092112274639302,0,0,0,0.0310025048918082]])"
+
+    "probabilities = np.concatenate((probabilities20, probabilities30, probabilities40, probabilities50, probabilities60, probabilities70, probabilities80), axis=0)"
+    "probabilities = np.concatenate((probabilities, probabilities90, probabilities100, probabilities110, probabilities120, probabilities130, probabilities140, probabilities150), axis=0)"
+    "probabilities = np.concatenate((probabilities, probabilities160, probabilities170, probabilities180, probabilities190, probabilities200, probabilities210, probabilities220), axis=0)"
+
+  )
+
+  set formula_mean_right (list (-0.00000007037505837 * ( py:runresult "dif_idx_right" / 279 ) ) (0.00004019779028 * ( py:runresult "dif_idx_right" / 279 ) ) (-0.007122360295 * ( py:runresult "dif_idx_right" / 279 ) ) (0.6072540765 * 1.3 * ( py:runresult "dif_idx_right" / 279 ) ))
+  set formula_mean_left (list (-0.0000001162575198 * ( py:runresult "dif_idx_right" / 279 ) ) (0.00006145714153 * ( py:runresult "dif_idx_right" / 279 ) ) (-0.009789839553 * ( py:runresult "dif_idx_right" / 279 ) ) (0.6224039649 * 1.3 * ( py:runresult "dif_idx_right" / 279 ) ))
+  set formula_std_right (list (-0.00000002670656088 * ( py:runresult "dif_idx_left" / 279 ) ) (0.00001449811053 * ( py:runresult "dif_idx_left" / 279 ) ) (-0.002810953445 * ( py:runresult "dif_idx_left" / 279 ) ) (0.4377108998 * ( py:runresult "dif_idx_left" / 279 ) ))
+  set formula_std_left (list (-0.00000002912425341 * ( py:runresult "dif_idx_left" / 279 ) ) (0.000016683754206 * ( py:runresult "dif_idx_left" / 279 ) ) (-0.003116448079 * ( py:runresult "dif_idx_left" / 279 ) ) (0.367328411 * ( py:runresult "dif_idx_left" / 279 ) ))
+
+  let out_lung ((py:runresult "out_slides") * 16)
+  set mean-out-lung 35.01694788273617 / out_lung
+  set std-out-lung 22.564015659625785 / out_lung
+
+  set min_idx_right ( py:runresult "min_idx_right" + 1)
+  set max_idx_right ( py:runresult "max_idx_right" + 1)
+  set min_idx_left ( py:runresult "min_idx_left" + 1)
+  set max_idx_left ( py:runresult "max_idx_left" + 1)
+
+  set next-pass-image round(((mean-out-lung) + (((random 2) * 2) - 1) * (random-float std-out-lung)) * 90)
+  set dif-pass-image next-pass-image
+
+  set descend-ascend TRUE
+  set pass 0
+
+  set lung "right"
+  set inside-lung FALSE
+
 end
 
 ; procedute to run the simulation
 to go
 
-  ask turtles [process]
-
   ; change image
-  if ((ticks mod 10) = 0) and (ticks > 1) and (ticks <= max_id * 10) [
+  ifelse (ticks = next-pass-image) [
 
     ;set num_image (num_image + 1)
-    set num_image (ticks / 10)
-    let str_num_image (word dir "\\" num_image ".png")
-    import-drawing str_num_image]
+
+    ifelse (pass < 2) and (descend-ascend) and (num_image >= (get-value-type "min_idx") - 2) and (num_image <= (get-value-type "max_idx") + 5)
+    [
+      ;set next-pass-image (random 11 + next-pass-image + 60 - 5)
+      let param1_mean (item 0 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx") ) ^ 3)
+      let param2_mean (item 1 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx") ) ^ 2)
+      let param3_mean (item 2 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx") ) ^ 1)
+      let param4_mean (item 3 (get-value-type "formula_mean"))
+      let param_sum_mean (param1_mean + param2_mean + param3_mean + param4_mean)
+
+      let param1_std (item 0 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 3)
+      let param2_std (item 1 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 2)
+      let param3_std (item 2 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 1)
+      let param4_std (item 3 (get-value-type "formula_std"))
+      let param_sum_std ((random-float(param1_std + param2_std + param3_std + param4_std)) * (((random 2) * 2) - 1))
+
+      set dif-pass-image (max list 1 random((param_sum_mean + param_sum_std) * 90))
+      set next-pass-image (next-pass-image + dif-pass-image)
+
+    ]
+    [
+      ifelse (descend-ascend) and (num_image > (get-value-type "max_idx") + 5)
+      [
+        set dif-pass-image (round(((mean-out-lung) + (((random 2) * 2) - 1) * (random-float std-out-lung)) * 90))
+        set next-pass-image (next-pass-image + dif-pass-image)
+        set descend-ascend FALSE
+
+        set pass (pass + 1)
+
+        if (pass = 2) [
+          let remaining (ticks / 0.85)
+        ]
+
+      ]
+      [
+        ifelse (descend-ascend = FALSE) and (num_image < (get-value-type "min_idx") - 2)
+        [
+          set dif-pass-image (round(((mean-out-lung) + (((random 2) * 2) - 1) * (random-float std-out-lung)) * 90))
+          set next-pass-image (next-pass-image + dif-pass-image)
+          set descend-ascend TRUE
+
+          ifelse (lung = "right")[
+            set lung "left"
+          ]
+          [
+            set lung "right"
+          ]
+
+        ]
+        [
+          ifelse (pass >= 2) and (descend-ascend) and (num_image >= (get-value-type "min_idx") - 2) and (num_image <= (get-value-type "max_idx") + 5)
+          [
+            let param1_mean (item 0 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 3)
+            let param2_mean (item 1 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 2)
+            let param3_mean (item 2 (get-value-type "formula_mean")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 1)
+            let param4_mean (item 3 (get-value-type "formula_mean")) * (2 / 3)
+            let param_sum_mean (param1_mean + param2_mean + param3_mean + param4_mean)
+
+            let param1_std (item 0 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 3)
+            let param2_std (item 1 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 2)
+            let param3_std (item 2 (get-value-type "formula_std")) * ((num_image + 1 - (get-value-type "min_idx")) ^ 1)
+            let param4_std (item 3 (get-value-type "formula_std")) * (2 / 3)
+            let param_sum_std ((random-float(param1_std + param2_std + param3_std + param4_std)) * (((random 2) * 2) - 1))
+
+            set dif-pass-image (max list 1 random((param_sum_mean + param_sum_std) * 90))
+            set next-pass-image (next-pass-image + dif-pass-image)
+
+          ]
+          [
+
+            set dif-pass-image ( round(((mean-out-lung) + (((random 2) * 2) - 1) * (random-float std-out-lung)) * 90) )
+            set next-pass-image (next-pass-image + dif-pass-image)
+
+          ]
+        ]
+      ]
+    ]
+
+    ifelse (descend-ascend)[
+      set num_image (num_image + 1)
+      let str_num_image (word dir "\\" num_image ".png")
+      import-drawing str_num_image
+    ]
+    [
+      set num_image (num_image - 1)
+      let str_num_image (word dir "\\" num_image ".png")
+      import-drawing str_num_image
+    ]
+  ]
+  [
+    ifelse (num_image >= (get-value-type "min_idx")) and (num_image <= (get-value-type "max_idx"))
+    [
+      set inside-lung TRUE
+    ]
+    [
+      set inside-lung FALSE
+    ]
+
+    ifelse (inside-lung) and (descend-ascend)[
+      ask turtles [lung-movement]
+    ][
+      ask turtles [random-movement]
+    ]
+  ]
 
   ask track-me [
     file-open file-name
@@ -94,7 +291,7 @@ to go
     file-close
   ]
 
-  if (ticks = ((max_id + 1) * 10 - 1))[
+  if (pass = 3)[
     stop
   ]
 
@@ -102,10 +299,277 @@ to go
 
 end
 
-; algorithm to travel information
-to process
+; MOVEMENTS INSIDE LUNG
+to lung-movement
+  ;let temp [xcor] of turtles
 
-  wait 1
+  let row (- ycor)
+  let col (xcor)
+  let page (num_image - 1)
+
+  let i_rgb 1
+  if (lung = "right")
+  [
+    set i_rgb 0
+  ]
+
+  py:set "row" row
+  py:set "col" col
+  py:set "page" page
+  py:set "i_rgb" i_rgb
+
+  (py:run
+    "pixel_value = np.max(ct_colors[row,col,i_rgb,page])"
+    )
+  let pixel_value py:runresult "pixel_value"
+
+  ifelse pixel_value = 0 [
+    (py:run
+      "idx = np.where(ct_colors[:,:,i_rgb,page] > 0); idx0 = idx[0]; idx1 = idx[1]; idx0_sub = idx0 - row; idx1_sub = idx1 - col; idx2 = ((idx0_sub**2) + (idx1_sub**2))**(1/2); amin = np.argmin(idx2)"
+      "idx_row = row - idx0[amin]; idx_col = col - idx1[amin];"
+      "signal = 1 if (idx_row >= 0) & (idx_col >= 0) else 2 if (idx_row >= 0) & (idx_col <= 0) else 3 if (idx_row <= 0) & (idx_col <= 0) else 4"
+      )
+
+    let signal py:runresult "signal"
+    let idx_row py:runresult "idx_row"
+    let idx_col py:runresult "idx_col"
+
+    let sum_x min list (random space_max + 1) (abs idx_col)
+    let sum_y min list (random space_max + 1) (abs idx_row)
+
+    ifelse signal = 1
+    [
+      set sum_x (- sum_x)
+      set sum_y sum_y
+    ]
+    [
+      ifelse signal = 4
+      [
+        set sum_x (- sum_x)
+        set sum_y (- sum_y)
+      ]
+      [
+        if signal = 3
+        [
+          set sum_x sum_x
+          set sum_y (- sum_y)
+        ]
+      ]
+    ]
+
+    let x_coord (xcor + sum_x)
+    let y_coord (ycor + sum_y)
+
+;    show sum_x
+;    show sum_y
+
+    setxy x_coord y_coord
+  ]
+  [
+    (py:run
+      "un = np.unique(ct_colors[:,:,i_rgb,page]); tam = len(un)"
+      )
+    let tam py:runresult "tam"
+
+    ifelse (tam = 2) or (pass >= 2)
+    [
+      (py:run
+        "random_array = np.random.rand(tam1,tam2);"
+        "inter = (ct_colors[:,:,i_rgb,page] > 0) * random_array;"
+        "amax_y = np.argmax(np.max(inter[row - int(space_max/2):row + int(space_max/2), col - int(space_max/2):col + int(space_max/2)], axis=1))"
+        "amax_x = np.argmax(np.max(inter[row - int(space_max/2):row + int(space_max/2), col - int(space_max/2):col + int(space_max/2)], axis=0))"
+      )
+
+      let amax_x py:runresult "amax_x"
+      let amax_y py:runresult "amax_y"
+
+      let x_coord (xcor + (amax_x - 15))
+      let y_coord (ycor - (amax_y - 15))
+
+      setxy x_coord y_coord
+      set color red
+      if (color-red = FALSE)
+      [
+        set color-red TRUE
+      ]
+    ]
+    [
+
+      (py:run
+        "un = np.unique(ct_colors[:,:,2,page] * (ct_colors[:,:,i_rgb,page] > 0)); tam = len(un)"
+        "pixel_value = np.max(ct_colors[row,col,2,page])"
+        )
+      set tam py:runresult "tam"
+      set pixel_value py:runresult "pixel_value"
+
+      ifelse (tam = 1)
+      [
+
+        ifelse (lung = "right")
+        [
+          py:set "s_lung" 0
+        ]
+        [
+          py:set "s_lung" 4
+        ]
+
+        (py:run
+          "pixel_value = np.max(ct_colors[row,col,i_rgb,page])"
+          "row_prob = int((pixel_value - 20)/10)"
+          "count_i = 0 if (row_prob < 7) else 7 if (row_prob < 14) else 14"
+          "probabilities[count_i:count_i+7, 5+s_lung] += 1"
+          "probabilities[row_prob, 6+s_lung] += 1"
+          "probabilities[row_prob, 7+s_lung] = probabilities[row_prob, 6+s_lung]/probabilities[row_prob, 5+s_lung]"
+          "probabilities[row_prob, 8+s_lung] = probabilities[row_prob, 1+int(s_lung/2)] - probabilities[row_prob, 7+s_lung]"
+          "neg_out = (1 - (ct_colors[row - int(space_max/2):row + 1 + int(space_max/2), col - int(space_max/2):col + 1 + int(space_max/2),i_rgb,page] > 0)) * (-100000)"
+          "neg_out = neg_out.flatten()"
+          "inter = ct_colors[row - int(space_max/2):row + 1 + int(space_max/2), col - int(space_max/2):col + 1 + int(space_max/2),i_rgb,page]"
+          "inter2 = inter.flatten()"
+          "for i in range(len(inter2)): inter2[i] =  neg_out[i] + probabilities[int((inter2[i] - 20)/10), 8+s_lung] + ((random.randint(0, 1) * 2) - 1) * random.uniform(0,(probabilities[int((inter2[i] - 20)/10), 2+int(s_lung/2)]))"
+          "inter3 = np.reshape(inter2, (space_max+1, space_max+1))"
+          "amax_y = np.argmax(np.max(inter3, axis=1))"
+          "amax_x = np.argmax(np.max(inter3, axis=0))"
+        )
+
+          let amax_x py:runresult "amax_x"
+          let amax_y py:runresult "amax_y"
+
+          let x_coord (xcor + (amax_x - 15))
+          let y_coord (ycor - (amax_y - 15))
+
+          setxy x_coord y_coord
+          set color red
+
+          if (color-red = FALSE)
+          [
+            set color-red TRUE
+          ]
+
+      ]
+      [
+
+          (py:run
+            "idx = np.where(ct_colors[:,:,2,page] > 0); idx0 = idx[0]; idx1 = idx[1]; idx0_sub = idx0 - row; idx1_sub = idx1 - col; idx2 = ((idx0_sub**2) + (idx1_sub**2))**(1/2); amin = np.argmin(idx2)"
+            "idx_row = row - idx0[amin]; idx_col = col - idx1[amin];"
+            "signal = 1 if (idx_row >= 0) & (idx_col >= 0) else 2 if (idx_row >= 0) & (idx_col <= 0) else 3 if (idx_row <= 0) & (idx_col <= 0) else 4"
+            )
+
+          let signal py:runresult "signal"
+          let idx_row py:runresult "idx_row"
+          let idx_col py:runresult "idx_col"
+
+          let sum_x min list (random space_max + 1) (abs idx_col + 1)
+          let sum_y min list (random space_max + 1) (abs idx_row + 1)
+
+          ifelse ((abs idx_col + 1) < space_max) and ((abs idx_row + 1) < space_max)
+          [
+            (py:run
+              "random_array = np.random.rand(tam1,tam2);"
+              "inter = (ct_colors[:,:,2,page] / np.max(ct_colors[:,:,2,page])) * random_array;"
+              "amax_y = np.argmax(np.max(inter[row - int(space_max/2):row + int(space_max/2), col - int(space_max/2):col + int(space_max/2)], axis=1))"
+              "amax_x = np.argmax(np.max(inter[row - int(space_max/2):row + int(space_max/2), col - int(space_max/2):col + int(space_max/2)], axis=0))"
+            )
+
+            let amax_x py:runresult "amax_x"
+            let amax_y py:runresult "amax_y"
+
+            let x_coord (xcor + (amax_x - 15))
+            let y_coord (ycor - (amax_y - 15))
+
+            setxy x_coord y_coord
+            set color yellow
+
+            if (color-red = TRUE) or (ticks = next-pass-image - 2 - dif-pass-image)
+            [
+              set color-red FALSE
+              set next-pass-image (next-pass-image + (dif-pass-image * 6))
+              set dif-pass-image (dif-pass-image * 7)
+            ]
+          ]
+          [
+            ifelse signal = 1
+            [
+              set sum_x (- sum_x)
+              set sum_y sum_y
+            ]
+            [
+              ifelse signal = 4
+              [
+                set sum_x (- sum_x)
+                set sum_y (- sum_y)
+              ]
+              [
+                if signal = 3
+                [
+                  set sum_x sum_x
+                  set sum_y (- sum_y)
+                ]
+              ]
+            ]
+
+            let x_coord (xcor + sum_x)
+            let y_coord (ycor + sum_y)
+
+        ;    show sum_x
+        ;    show sum_y
+
+            setxy x_coord y_coord
+        ]
+      ]
+    ]
+  ]
+
+end
+
+; UNTIL THE BOTTOM IS TO SET RANDOM MOVEMENTS
+to-report get-value-type [value]
+
+  if (value = "formula_mean") and (lung = "right")
+  [
+    report formula_mean_right
+  ]
+
+  if (value = "formula_mean") and (lung = "left")
+  [
+    report formula_mean_left
+  ]
+
+  if (value = "formula_std") and (lung = "right")
+  [
+    report formula_std_right
+  ]
+
+  if (value = "formula_std") and (lung = "left")
+  [
+    report formula_std_left
+  ]
+
+  if (value = "min_idx") and (lung = "right")
+  [
+    report min_idx_right
+  ]
+
+  if (value = "min_idx") and (lung = "left")
+  [
+    report min_idx_left
+  ]
+
+  if (value = "max_idx") and (lung = "right")
+  [
+    report max_idx_right
+  ]
+
+  if (value = "max_idx") and (lung = "left")
+  [
+    report max_idx_left
+  ]
+
+end
+
+; algorithm to travel information
+to random-movement
+
+  ; wait 1
 
   ; set random space
   let space random (int (space_max * 2) + 1)
